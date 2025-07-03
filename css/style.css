@@ -1,0 +1,43 @@
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: sans-serif;
+}
+
+#board {
+  display: grid;
+  grid-template: repeat(15, 40px) / repeat(15, 40px);
+  gap: 2px;
+  margin: 20px 0;
+}
+
+.cell {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ccc;
+  position: relative;
+}
+
+/* Token styles */
+.token {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  cursor: pointer;
+}
+
+/* Dice & controls */
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+#dice {
+  font-size: 2rem;
+  padding: 10px 20px;
+}
