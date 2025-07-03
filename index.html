@@ -2,89 +2,287 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Inline Ludo Test</title>
+  <title>Ludo Master</title>
   <style>
-    body { display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
-    #board { display: grid; grid: repeat(15,40px)/repeat(15,40px); gap:2px; margin:20px 0; }
-    .cell { width:40px; height:40px; border:1px solid #ccc; position:relative; }
-    .token { width:28px; height:28px; border-radius:50%; position:absolute; top:6px; left:6px; cursor:pointer;}
-    .token.red{background:red} .token.green{background:green}
-    .token.yellow{background:orange} .token.blue{background:blue}
-    #controls { display:flex; gap:20px; align-items:center; } 
-    #dice { font-size:2rem; padding:10px 20px; }
+    /* ========== BOARD STYLES ========== */
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
+    h1 {
+      margin: 20px 0 0;
+    }
+    #board {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      display: grid;
+      grid-template: repeat(15, 1fr) / repeat(15, 1fr);
+      border: 4px solid #333;
+      background: white;
+    }
+    .cell {
+      border: 1px solid #ccc;
+      position: relative;
+    }
+    /* Home Bases */
+    .home.red    { background: #fcc; }
+    .home.green  { background: #cfc; }
+    .home.yellow { background: #ffc; }
+    .home.blue   { background: #ccf; }
+
+    /* Main Path */
+    .path.red    { background: #fee; }
+    .path.green  { background: #efe; }
+    .path.yellow { background: #ffe; }
+    .path.blue   { background: #eef; }
+    .path.safe   { background: #ddd; }
+
+    /* Finish Lanes */
+    .finish.red    { background: #fcc; }
+    .finish.green  { background: #cfc; }
+    .finish.yellow { background: #ffc; }
+    .finish.blue   { background: #ccf; }
+
+    /* Tokens */
+    .token {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      cursor: pointer;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      transition: transform 0.2s;
+    }
+    .token.red    { background: #d33; }
+    .token.green  { background: #3d3; }
+    .token.yellow { background: #dd3; }
+    .token.blue   { background: #33d; }
+    .token:hover  { transform: scale(1.1); }
+
+    /* Controls */
+    #controls {
+      margin: 10px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    #dice {
+      font-size: 1.5rem;
+      padding: 8px 16px;
+    }
+    #message {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-
-  <h1>Ludo Test</h1>
+  <h1>Ludo Master</h1>
   <div id="board"></div>
   <div id="controls">
     <button id="dice">Roll Dice</button>
     <div>Turn: <span id="currentPlayer">Red</span></div>
     <div>Dice: <span id="diceValue">-</span></div>
+    <div id="message"></div>
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const boardEl = document.getElementById('board');
-      const diceBtn = document.getElementById('dice');
-      const currentPlayerEl = document.getElementById('currentPlayer');
-      const diceValueEl = document.getElementById('diceValue');
+  document.addEventListener('DOMContentLoaded', () => {
+    const boardEl = document.getElementById('board');
+    const diceBtn = document.getElementById('dice');
+    const currentEl = document.getElementById('currentPlayer');
+    const diceEl = document.getElementById('diceValue');
+    const msgEl  = document.getElementById('message');
 
-      const players = ['red','green','yellow','blue'];
-      let currentPlayerIdx = 0;
-      let diceValue = 0;
+    const players = ['red','green','yellow','blue'];
+    let turnIdx = 0, diceVal = 0;
+    let finished = { red:0, green:0, yellow:0, blue:0 };
 
-      // build cells
-      const cells = [];
-      for(let i=0;i<225;i++){
-        const c=document.createElement('div');
-        c.className='cell';
-        boardEl.append(c);
-        cells.push(c);
+    // 1. Build board cells
+    const cells = [];
+    for (let r=0; r<15; r++) {
+      for (let c=0; c<15; c++) {
+        const idx = r*15 + c;
+        const div = document.createElement('div');
+        div.className = 'cell';
+        boardEl.append(div);
+        cells.push(div);
       }
+    }
 
-      // starting positions
-      const startIdx={red:0,green:12,yellow:156,blue:168};
-      const playersPos={};
-      players.forEach(c=>{
-        playersPos[c]=Array.from({length:4},(_,i)=>startIdx[c]+i*15);
-      });
+    // 2. Define paths and zones
+    // Main path indexes clockwise starting at red’s entry (r=6,c=0)
+    const mainPath = [
+      [6,0],[6,1],[6,2],[6,3],[6,4],
+      [5,4],[4,4],[3,4],[2,4],[1,4],[0,4],
+      [0,5],[0,6],
+      [1,6],[2,6],[3,6],[4,6],[5,6],
+      [6,6],[7,6],[8,6],[9,6],[10,6],
+      [10,5],[10,4],[10,3],[10,2],[10,1],[10,0],
+      [11,0],[12,0],[12,1],[12,2],[12,3],[12,4],
+      [13,4],[14,4],[14,5],[14,6],
+      [13,6],[12,6],[11,6],[10,6], // Note overlap for finish will be handled
+      [10,7],[10,8],[10,9],[10,10],
+      [9,10],[8,10],[7,10],[6,10],
+      [6,9],[6,8],[6,7],[6,6] // wraps
+    ].map(([r,c]) => r*15 + c);
 
-      // create tokens
-      players.forEach(color=>{
-        playersPos[color].forEach((pos,i)=>{
-          const tok=document.createElement('div');
-          tok.className=`token ${color}`;
-          tok.dataset.color=color;
-          tok.dataset.idx=i;
-          cells[pos].append(tok);
-          tok.addEventListener('click',moveToken);
-        });
-      });
+    // Finishing lanes: 5 steps per color
+    const finishPath = {
+      red:    [6*15+1,6*15+2,6*15+3,6*15+4,6*15+5],
+      green:  [1*15+6,2*15+6,3*15+6,4*15+6,5*15+6],
+      yellow: [8*15+14,7*15+14,6*15+14,5*15+14,4*15+14],
+      blue:   [14*15+8,14*15+7,14*15+6,14*15+5,14*15+4]
+    };
 
-      diceBtn.addEventListener('click',()=>{
-        diceValue = Math.floor(Math.random()*6)+1;
-        diceValueEl.textContent=diceValue;
-        diceBtn.disabled=true;
-      });
+    // Safe zone indexes (common)
+    const safeZones = new Set([1,9,14,20,26,32,38,44,50,56]);
 
-      function moveToken(e){
-        const tok=e.currentTarget;
-        if(tok.dataset.color!==players[currentPlayerIdx]||diceValue===0) return;
-        const color=tok.dataset.color;
-        const idx=+tok.dataset.idx;
-        let pos=(playersPos[color][idx]+diceValue)%cells.length;
-        cells[playersPos[color][idx]].removeChild(tok);
-        cells[pos].append(tok);
-        playersPos[color][idx]=pos;
-        diceValue=0;
-        diceBtn.disabled=false;
-        currentPlayerIdx=(currentPlayerIdx+1)%players.length;
-        currentPlayerEl.textContent=players[currentPlayerIdx][0].toUpperCase()+players[currentPlayerIdx].slice(1);
-        diceValueEl.textContent='-';
+    // Paint cells
+    cells.forEach((cell,i) => {
+      if (safeZones.has(i)) cell.classList.add('path','safe');
+      else if (mainPath.includes(i)) {
+        const p = Math.floor(mainPath.indexOf(i)/14);
+        cell.classList.add('path', players[p]);
+      }
+      else {
+        // four 6×6 homes
+        const r = Math.floor(i/15), c = i%15;
+        if (r<6 && c<6) cell.classList.add('home','red');
+        if (r<6 && c>8) cell.classList.add('home','green');
+        if (r>8 && c<6) cell.classList.add('home','yellow');
+        if (r>8 && c>8) cell.classList.add('home','blue');
+      }
+      // finish lanes
+      for (let col of players) {
+        if (finishPath[col].includes(i)) cell.classList.add('finish',col);
       }
     });
+
+    // 3. Place tokens in home
+    const tokenPos = {};
+    players.forEach(col => {
+      tokenPos[col] = [];
+      const homeCells = cells.filter((_,i) => 
+        cells[i].classList.contains('home') &&
+        cells[i].classList.contains(col)
+      ).slice(0,4);
+      homeCells.forEach((cell,j) => {
+        const tok = document.createElement('div');
+        tok.className = `token ${col}`;
+        tok.dataset.col = col;
+        tok.dataset.idx = j;
+        cell.append(tok);
+        tokenPos[col].push({ cellIdx: homeCells[j].__cellIndex = cells.indexOf(cell) });
+        tok.addEventListener('click', onTokenClick);
+      });
+    });
+
+    // 4. Dice roll
+    diceBtn.onclick = () => {
+      diceVal = Math.floor(Math.random()*6)+1;
+      diceEl.textContent = diceVal;
+      diceBtn.disabled = true;
+      msgEl.textContent = '';
+    };
+
+    // 5. Token click
+    function onTokenClick(e) {
+      const tok = e.currentTarget;
+      const col = tok.dataset.col;
+      if (players[turnIdx] !== col || diceVal === 0) return;
+
+      let posObj = tokenPos[col][tok.dataset.idx];
+      let pos = posObj.cellIdx;
+
+      // Determine next index on path
+      const entry = mainPath.indexOf(startEntry(col));
+      let idxInMain = mainPath.indexOf(pos);
+
+      // If in home, only can move out on dice 6
+      if (cells[pos].classList.contains('home')) {
+        if (diceVal !== 6) return;
+        idxInMain = entry;
+      } else if (finishPath[col].includes(pos)) {
+        // moving in finish lane
+        const finIdx = finishPath[col].indexOf(pos);
+        if (finIdx + diceVal >= finishPath[col].length) return;
+        posObj.cellIdx = finishPath[col][finIdx + diceVal];
+        moveDOM(tok, posObj.cellIdx);
+        return endTurn(col, tok);
+      } else {
+        // on main path
+        let next = (idxInMain + diceVal) % mainPath.length;
+        // entering finish zone if passing last entry
+        if (idxInMain < entry && next >= entry) {
+          const finStep = next - entry;
+          if (finStep < finishPath[col].length) {
+            posObj.cellIdx = finishPath[col][finStep];
+            moveDOM(tok, posObj.cellIdx);
+            return endTurn(col, tok);
+          }
+        }
+        posObj.cellIdx = mainPath[next];
+      }
+
+      // Move token
+      moveDOM(tok, posObj.cellIdx);
+
+      // Collision: send others home
+      cells[posObj.cellIdx].querySelectorAll('.token').forEach(other => {
+        if (other !== tok && other.dataset.col !== col && !cells[posObj.cellIdx].classList.contains('safe')) {
+          sendHome(other);
+        }
+      });
+
+      endTurn(col, tok);
+    }
+
+    // Helpers
+    function startEntry(col) {
+      const map = { red: mainPath[0], green: mainPath[14], yellow: mainPath[28], blue: mainPath[42] };
+      return map[col];
+    }
+    function moveDOM(tok, idx) {
+      cells[idx].append(tok);
+    }
+    function sendHome(tok) {
+      const c = tok.dataset.col, i = tok.dataset.idx;
+      const homeCells = cells.filter((cell) =>
+        cell.classList.contains('home') && cell.classList.contains(c)
+      );
+      tok.remove();
+      homeCells[i].append(tok);
+      tokenPos[c][i].cellIdx = cells.indexOf(homeCells[i]);
+    }
+    function endTurn(col, tok) {
+      // Check finish
+      if (finishPath[col].includes(tok.parentElement.__cellIndex || cells.indexOf(tok.parentElement))) {
+        if (++finished[col] === 4) {
+          alert(`${col.toUpperCase()} wins the game!`);
+          location.reload();
+        }
+      }
+
+      // Extra roll on 6 or capture
+      const onSafe = cells[tokenPos[col][tok.dataset.idx].cellIdx].classList.contains('safe');
+      diceBtn.disabled = !(diceVal === 6 || onSafe);
+      if (diceBtn.disabled) turnIdx = (turnIdx + 1) % players.length;
+      currentEl.textContent = players[turnIdx].charAt(0).toUpperCase() + players[turnIdx].slice(1);
+      diceEl.textContent = '-';
+      diceVal = 0;
+    }
+
+    // Tag each cell with its index (for finish logic)
+    cells.forEach((c,i) => c.__cellIndex = i);
+  });
   </script>
 </body>
 </html>
