@@ -2,20 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ludo Game</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Inline Ludo Test</title>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+    #board { display: grid; grid: repeat(15,40px)/repeat(15,40px); gap:2px; margin:20px 0; }
+    .cell { width:40px; height:40px; border:1px solid #ccc; position:relative; }
+    .token { width:28px; height:28px; border-radius:50%; position:absolute; top:6px; left:6px; cursor:pointer;}
+    .token.red{background:red} .token.green{background:green}
+    .token.yellow{background:orange} .token.blue{background:blue}
+    #controls { display:flex; gap:20px; align-items:center; } 
+    #dice { font-size:2rem; padding:10px 20px; }
+  </style>
 </head>
 <body>
 
-  <h1>Ludo Game</h1>
+  <h1>Ludo Test</h1>
   <div id="board"></div>
-
   <div id="controls">
     <button id="dice">Roll Dice</button>
     <div>Turn: <span id="currentPlayer">Red</span></div>
     <div>Dice: <span id="diceValue">-</span></div>
   </div>
 
-  <script src="js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const boardEl = document.getElementById('board');
+      const diceBtn = document.getElementById('dice');
+      const currentPlayerEl = document.getElementById('currentPlayer');
+      const diceValueEl = document.getElementById('diceValue');
+
+      const players = ['red','green','yellow','blue'];
+      let currentPlayerIdx = 0;
+      let diceValue = 0;
+
+      // build cells
+      const cells = [];
+      for(let i=0;i<225;i++){
+        const c=document.createElement('div');
+        c.className='cell';
+        boardEl.append(c);
+        cells.push(c);
+      }
+
+      // starting positions
+      const startIdx={red:0,green:12,yellow:156,blue:168};
+      const playersPos={};
+      players.forEach(c=>{
+        playersPos[c]=Array.from({length:4},(_,i)=>startIdx[c]+i*15);
+      });
+
+      // create tokens
+      players.forEach(color=>{
+        playersPos[color].forEach((pos,i)=>{
+          const tok=document.createElement('div');
+          tok.className=`token ${color}`;
+          tok.dataset.color=color;
+          tok.dataset.idx=i;
+          cells[pos].append(tok);
+          tok.addEventListener('click',moveToken);
+        });
+      });
+
+      diceBtn.addEventListener('click',()=>{
+        diceValue = Math.floor(Math.random()*6)+1;
+        diceValueEl.textContent=diceValue;
+        diceBtn.disabled=true;
+      });
+
+      function moveToken(e){
+        const tok=e.currentTarget;
+        if(tok.dataset.color!==players[currentPlayerIdx]||diceValue===0) return;
+        const color=tok.dataset.color;
+        const idx=+tok.dataset.idx;
+        let pos=(playersPos[color][idx]+diceValue)%cells.length;
+        cells[playersPos[color][idx]].removeChild(tok);
+        cells[pos].append(tok);
+        playersPos[color][idx]=pos;
+        diceValue=0;
+        diceBtn.disabled=false;
+        currentPlayerIdx=(currentPlayerIdx+1)%players.length;
+        currentPlayerEl.textContent=players[currentPlayerIdx][0].toUpperCase()+players[currentPlayerIdx].slice(1);
+        diceValueEl.textContent='-';
+      }
+    });
+  </script>
 </body>
 </html>
