@@ -1,0 +1,12 @@
+# Node modules (if you ever add packages)
+node_modules/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Editor folders
+.vscode/
+*.suo
